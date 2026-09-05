@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Automatic renewal of the 1C client license on the mac: Mon/Thu 03:37 the
+     client starts HIDDEN (no window appears; open -g -j) for 90 seconds —
+     renewal runs at startup, machine-based, no clicks — and is then killed.
+     If the mac was asleep, launchd will run the job on wake (hidden, so the
+     timing does not matter).
+     Install: sh src/mac/install-client.sh
+     Log: /tmp/1c-license-renew.log. Requires /var/1C/licenses (see README). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.1c-license-renew</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__REPO_ROOT__/src/mac/1c-license-autorenew.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>3</integer>
+            <key>Minute</key><integer>37</integer>
+            <key>Weekday</key><integer>1</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>3</integer>
+            <key>Minute</key><integer>37</integer>
+            <key>Weekday</key><integer>4</integer>
+        </dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/tmp/1c-license-renew.launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/1c-license-renew.launchd.err</string>
+</dict>
+</plist>

@@ -1,0 +1,31 @@
+# Downloaded distributions (large binary archives, fetched from releases.1c.ru).
+# The directory exists in the repo but is empty (.gitkeep) — the build only
+# needs the exact file names for the version, any junk next to them is irrelevant.
+dists/*
+!dists/.gitkeep
+
+# Secrets (template — .env.example)
+.env
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+
+# Local Claude Code artifacts (task scheduler)
+.claude/scheduled_tasks.json
+.claude/scheduled_tasks.lock
+
+# Local data and logs
+data/
+*.log
+tjlog/
+
+# epf build artifacts (v8unpack working tree and rebuild backups)
+src/license-epf/unpacked/
+src/license-epf/*.epf.bak
+
+# 1C license files (hardware-bound, short-lived — no copies kept)
+*.lic
+*.lic.bak

@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1
+# 1C:Enterprise server — NATIVE arm64 build for Apple Silicon.
+#
+# A thin addition on top of the 1c-base:11 base (build it in advance: ./src/scripts/build.sh):
+# apt-install of the needed version's deb packages via bind-mount (the debs do
+# not remain in layers), distribution leftovers are cleaned out. Changing the
+# platform version (e.g. 8.5 or a fresh 8.3) means rebuilding only this layer:
+#   docker build --build-arg SERVER_VERSION=8.5.1.1343 \
+#     --build-arg SERVER_COMMON=1c-enterprise-8.5.1.1343-common_8.5.1-1343_arm64.deb \
+#     --build-arg SERVER_DEB=1c-enterprise-8.5.1.1343-server_8.5.1-1343_arm64.deb \
+#     -t server1c:8.5.1.1343 -f src/Dockerfile.server .
+#
+# Before building, download from releases.1c.ru "1C:Enterprise server (64-bit ARM)
+# for DEB-based Linux systems" (server.arm.deb64_<version>.zip) and unpack two
+# packages into dists/: common and server.
+#
+# WARNING: per 1C system requirements, running on the ARM64 architecture
+# requires a KORP-level license. If the license does not fit — Dockerfile.server.amd64.
+FROM docker.io/0x3654/1c-base:latest
+
+ARG SERVER_VERSION=8.3.27.2325
+ARG SERVER_ARCH=arm64
+ARG SERVER_COMMON=1c-enterprise-8.3.27.2325-common_8.3.27-2325_arm64.deb
+ARG SERVER_DEB=1c-enterprise-8.3.27.2325-server_8.3.27-2325_arm64.deb
+
+LABEL org.opencontainers.image.title="1C:Enterprise server ${SERVER_VERSION} (${SERVER_ARCH})" \
+      org.opencontainers.image.description="ragent/rmngr/rphost/ras for the pg1c dev stand (macOS Docker)" \
+      org.opencontainers.image.version="${SERVER_VERSION}"
+
+# debs via bind-mount (they do not remain in layers); ExtDst is the client
+# agent installers for 3 architectures (~224 MB), not needed by the server
+RUN --mount=type=bind,source=dists,target=/dists set -eux; \
+    apt-get -o Acquire::Check-Valid-Until=false update; \
+    apt-get install -y --no-install-recommends "/dists/${SERVER_COMMON}" "/dists/${SERVER_DEB}"; \
+    rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man \
+           /opt/1cv8/${SERVER_ARCH}/${SERVER_VERSION}/ExtDst
+
+# ras calls /sbin/ip at startup (interface detection) — without it, junk in the logs
+RUN apt-get -o Acquire::Check-Valid-Until=false update && \
+    apt-get install -y --no-install-recommends iproute2 && \
+    rm -rf /var/lib/apt/lists/*
+
+# entrypoint AFTER the heavy layers: editing the script does not invalidate the deb layer cache
+COPY src/entrypoints/server-entrypoint.sh /usr/local/bin/
+
+# the packages install the platform into /opt/1cv8/<arch>/<full-version>/;
+# RAS_PORT: differs per platform (8.3: 1545, 8.5: 2545) — read by the entrypoint
+# and HEALTHCHECK, overridden by the container env
+ENV LANG=ru_RU.UTF-8 \
+    PATH=/opt/1cv8/${SERVER_ARCH}/${SERVER_VERSION}:$PATH \
+    RAS_PORT=1545
+
+# root (not usr1cv8): the entrypoint must be able to mount --bind /proc/cpuinfo
+# (fake-cpuinfo for the Rosetta license fingerprint, see entrypoint); ragent
+# itself starts as usr1cv8 via setpriv
+USER root
+VOLUME /home/usr1cv8
+EXPOSE 1540 1541 1545 1560-1591
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD rac localhost:${RAS_PORT:-1545} cluster list >/dev/null 2>&1 || exit 1
+
+ENTRYPOINT ["server-entrypoint.sh"]

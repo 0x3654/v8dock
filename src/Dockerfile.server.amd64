@@ -1,0 +1,45 @@
+# FALLBACK OPTION: 1C:Enterprise 8.3 server in a linux/amd64 container under
+# Rosetta on Apple Silicon (the primary one is native arm64, Dockerfile.server).
+#
+# Requires: Docker Desktop -> Settings -> General -> "Use Rosetta for x86/amd64
+# emulation" + MANDATORY init: true (without tini, ragent as PID 1 does not
+# reap child processes under emulation: rmngr/rphost do not come up,
+# connections fail with "Interrupted system call").
+#
+# Build: docker build -f src/Dockerfile.server.amd64 --platform linux/amd64 \
+#           --build-arg TARGET_SUFFIX=-amd64 -t server1c:8.3.27.2325-amd64 .
+FROM --platform=linux/amd64 debian:12-slim
+
+ARG SERVER_VERSION=8.3.27.2325
+ARG SERVER_COMMON=1c-enterprise-8.3.27.2325-common_8.3.27-2325_amd64.deb
+ARG SERVER_DEB=1c-enterprise-8.3.27.2325-server_8.3.27-2325_amd64.deb
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates locales fonts-dejavu-core iproute2; \
+    echo 'ru_RU.UTF-8 UTF-8' >> /etc/locale.gen; \
+    locale-gen; \
+    rm -rf /var/lib/apt/lists/*
+
+COPY dists/${SERVER_COMMON} dists/${SERVER_DEB} /tmp/
+COPY src/entrypoints/server-entrypoint.sh /usr/local/bin/
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends /tmp/*.deb; \
+    rm -rf /var/lib/apt/lists/* /tmp/*.deb
+
+# the new packages (1c-enterprise-<version>-server) install the platform into
+# /opt/1cv8/x86_64/<full-version>/
+ENV LANG=ru_RU.UTF-8 \
+    PATH=/opt/1cv8/x86_64/${SERVER_VERSION}:$PATH
+
+USER usr1cv8
+VOLUME /home/usr1cv8
+EXPOSE 1540 1541 1545 1560-1591
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD rac localhost:1545 cluster list >/dev/null 2>&1 || exit 1
+
+ENTRYPOINT ["server-entrypoint.sh"]

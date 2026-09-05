@@ -1,0 +1,468 @@
+processor	: 0
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 0
+cpu cores	: 18
+apicid		: 0
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 1
+cpu cores	: 18
+apicid		: 1
+initial apicid	: 1
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 2
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 2
+cpu cores	: 18
+apicid		: 2
+initial apicid	: 2
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 3
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 3
+cpu cores	: 18
+apicid		: 3
+initial apicid	: 3
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 4
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 4
+cpu cores	: 18
+apicid		: 4
+initial apicid	: 4
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 5
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 5
+cpu cores	: 18
+apicid		: 5
+initial apicid	: 5
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 6
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 6
+cpu cores	: 18
+apicid		: 6
+initial apicid	: 6
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 7
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 7
+cpu cores	: 18
+apicid		: 7
+initial apicid	: 7
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 8
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 8
+cpu cores	: 18
+apicid		: 8
+initial apicid	: 8
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 9
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 9
+cpu cores	: 18
+apicid		: 9
+initial apicid	: 9
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 10
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 10
+cpu cores	: 18
+apicid		: 10
+initial apicid	: 10
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 11
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 11
+cpu cores	: 18
+apicid		: 11
+initial apicid	: 11
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 12
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 12
+cpu cores	: 18
+apicid		: 12
+initial apicid	: 12
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 13
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 13
+cpu cores	: 18
+apicid		: 13
+initial apicid	: 13
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 14
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 14
+cpu cores	: 18
+apicid		: 14
+initial apicid	: 14
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 15
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 15
+cpu cores	: 18
+apicid		: 15
+initial apicid	: 15
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 16
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 16
+cpu cores	: 18
+apicid		: 16
+initial apicid	: 16
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+
+processor	: 17
+vendor_id	: VirtualApple
+cpu family	: 6
+model		: 142
+model name	: VirtualApple @ 2.50GHz
+stepping	: 10
+cpu MHz		: 2502.057
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 18
+core id		: 17
+cpu cores	: 18
+apicid		: 17
+initial apicid	: 17
+fpu		: yes
+fpu_exception	: no
+cpuid level	: 22
+wp		: yes
+flags		: fpu tsc de cx8 apic sep cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx lm rep_good nopl pni cpuid pclmulqdq ssse3 cx16 sse4_1 popcnt sse4_2 aes lahf_lm movbe fma avx f16c rdrand bmi1 avx2 bmi2
+bugs		:
+bogomips	: 5184.11
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 39 bits physical, 48 bits virtual
+power management:
+

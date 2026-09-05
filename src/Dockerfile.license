@@ -1,0 +1,54 @@
+# syntax=docker/dockerfile:1
+# 1C license activation/renewal stand: ONLY the thick client (native arm64),
+# screen via Xvfb (+x11vnc for emergency VNC access to the wizard,
+# vnc://localhost:5900). The thick client opens the file infobase directly (/F)
+# and runs the epf automation of license-renew.sh — ibsrv and the thin client
+# are not needed, there is no server package.
+#
+# A thin addition on top of the lic1c-base:11 base (build it in advance:
+# ./src/scripts/build.sh). The unpack stage unpacks the debs (dpkg-deb -x:
+# common + client + SERVER — the deb files do not remain in layers), the final
+# stage takes only /opt/1cv8 from it.
+# IMPORTANT: the server deb MUST be present in the stand — the thick client in
+# /F mode (file infobase directly) brings up the server context from its
+# libraries; without it the client segfaults at startup (a pitfall hit on 06.09.2026).
+#
+# Before building, download from releases.1c.ru "1C:Enterprise client (64-bit ARM)
+# for DEB-based Linux systems" (client.arm.deb64_<version>.zip) and unpack the
+# client package into dists/.
+FROM docker.io/0x3654/lic1c-base:latest AS unpack
+
+ARG CLIENT_DEB=1c-enterprise-8.3.27.2325-client_8.3.27-2325_arm64.deb
+ARG COMMON_DEB=1c-enterprise-8.3.27.2325-common_8.3.27-2325_arm64.deb
+ARG SERVER_DEB=1c-enterprise-8.3.27.2325-server_8.3.27-2325_arm64.deb
+
+# libwx *.wk41 — a copy of wxWidgets for webkit 4.1 (on bullseye, the 4.0 one loads)
+RUN --mount=type=bind,source=dists,target=/dists set -eux; \
+    dpkg-deb -x "/dists/${COMMON_DEB}" /out; \
+    dpkg-deb -x "/dists/${CLIENT_DEB}" /out; \
+    dpkg-deb -x "/dists/${SERVER_DEB}" /out; \
+    rm -f /out/opt/1cv8/arm64/*/libwx_gtk3u*.wk41
+
+FROM docker.io/0x3654/lic1c-base:latest
+
+ARG SERVER_VERSION=8.3.27.2325
+
+LABEL org.opencontainers.image.title="1C license stand ${SERVER_VERSION} (arm64)" \
+      org.opencontainers.image.description="Thick client under Xvfb/VNC; runs the license-renew.sh epf automaton" \
+      org.opencontainers.image.version="${SERVER_VERSION}"
+
+COPY --from=unpack /out/opt/1cv8 /opt/1cv8
+
+# entrypoint after the heavy COPY: editing the script does not invalidate the cache
+COPY src/entrypoints/license-entrypoint.sh /usr/local/bin/
+
+# uid/gid hardcoded to the server volume owner (usr1cv8:grp1cv8 = 999:1000):
+# the platform calls getpwnam and segfaults silently without the user
+RUN groupadd -g 1000 grp1cv8 && \
+    useradd -o -u 999 -g 1000 -d /home/usr1cv8 -s /usr/sbin/nologin usr1cv8
+
+ENV LANG=ru_RU.UTF-8 \
+    PATH=/opt/1cv8/arm64/${SERVER_VERSION}:$PATH \
+    DISPLAY=:0
+
+ENTRYPOINT ["license-entrypoint.sh"]

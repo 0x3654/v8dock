@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1
+# License acquisition/renewal stand for PLATFORM 8.5 — native arm64.
+#
+# Why it is separate from lic1c (8.3): 8.5 computes the fingerprint from
+# different sources (/proc/stat, /sys/devices/system/cpu/online,
+# /proc/self/status — the CPU fields remain EMPTY on any architecture), so a
+# license issued from an 8.3 fingerprint (VirtualApple-x86) is NOT validated
+# by 8.5. Issuing from the 8.5 client yields a license without a CPU binding —
+# the same one, in theory, is also accepted by 8.3 (only what is listed in the
+# license is checked).
+#
+# Base lic1c-base:11 (bullseye): the 8.5 client links against webkit 4.0
+# (libwebkit2gtk-4.0.so.37 — verified on bookworm), same as 8.3.
+# The server deb is mandatory (the /F thick client brings up the server context).
+FROM docker.io/0x3654/lic1c-base:latest
+
+ARG PLATFORM_VERSION=8.5.1.1522
+ARG CLIENT_DEB=1c-enterprise-8.5.1.1522-client_8.5.1-1522_arm64.deb
+ARG COMMON_DEB=1c-enterprise-8.5.1.1522-common_8.5.1-1522_arm64.deb
+ARG SERVER_DEB=1c-enterprise-8.5.1.1522-server_8.5.1-1522_arm64.deb
+
+RUN --mount=type=bind,source=dists,target=/dists set -eux; \
+    mkdir -p /out /opt/1cv8/arm64/${PLATFORM_VERSION}; \
+    dpkg-deb -x "/dists/${COMMON_DEB}" /out; \
+    dpkg-deb -x "/dists/${CLIENT_DEB}" /out; \
+    dpkg-deb -x "/dists/${SERVER_DEB}" /out; \
+    cp -a /out/opt/1cv8/arm64/${PLATFORM_VERSION}/. /opt/1cv8/arm64/${PLATFORM_VERSION}/; \
+    rm -rf /out; \
+    groupadd -g 1000 grp1cv8; \
+    useradd -o -u 999 -g 1000 -d /home/usr1cv8 -s /usr/sbin/nologin usr1cv8; \
+    mkdir -p /home/usr1cv8; chown usr1cv8:grp1cv8 /home/usr1cv8
+
+ENV LANG=ru_RU.UTF-8 \
+    PATH=/opt/1cv8/arm64/${PLATFORM_VERSION}:$PATH \
+    DISPLAY=:0
+
+COPY src/entrypoints/license-entrypoint.sh /usr/local/bin/
+
+ENTRYPOINT ["license-entrypoint.sh"]

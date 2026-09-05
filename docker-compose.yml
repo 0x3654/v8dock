@@ -1,0 +1,272 @@
+name: v8dock
+
+services:
+  # PostgreSQL 18.4-1.1C (1C-patched build) — the central DBMS for all 1C infobases.
+  # Access: mac -> localhost:5432, Windows (Parallels) -> 10.211.55.2:5432
+  #
+  # VERSION IS PARAMETERIZED via env (or .env):
+  #   ./src/scripts/build-pg.sh 17.10-1.1C   # build an image of that version (archive in dists/)
+  #   PG_VERSION=17.10-1.1C docker compose up -d pg1c
+  # The archive name (the debian minor inside it drifts between releases) is not
+  # derived by compose — PG_PACKAGE/PG_MAJOR can be set via env; defaults match
+  # the current version. Switching the MAJOR requires a new volume by hand: in
+  # pg1c-data the cluster lives at /var/lib/postgresql/<major>/main, under a
+  # different major an EMPTY database comes up.
+  pg1c:
+    build:
+      context: .
+      dockerfile: src/Dockerfile
+      args:
+        PG_PACKAGE: ${PG_PACKAGE:-postgresql_18.4_1_debian_12.11_aarch64_package.tar.bz2}
+        PG_MAJOR: ${PG_MAJOR:-18}
+    image: pg1c:${PG_VERSION:-18.4-1.1C}
+    container_name: pg1c
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg1c-data:/var/lib/postgresql/18/main
+      # backups: a host folder visible in the container as /backups (default
+      # ./data/backups, override in .env; point it at a Time Machine-covered
+      # dir if you have one). Nightly dump: src/backup/pg-backup.sh + launchd.
+      - ${PG_BACKUP_DIR:-./data/backups}:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    # default (for server1c83/backup) + srv85-net (for server1c85)
+    networks:
+      - default
+      - srv85-net
+
+  # 1C:Enterprise server — VERSION IS PARAMETERIZED via env (or .env):
+  #   ./src/scripts/build-server.sh 8.3.27.2340   # build an image of that version (debs in dists/)
+  #   SERVER_VERSION=8.3.27.2340 docker compose --profile with-server up -d
+  # Deb names use two version formats (8.3.27.2325 -> 8.3.27-2325), compose
+  # cannot derive them — SERVER_COMMON/SERVER_DEB can be set via env; defaults
+  # match the current version. Run ONLY ONE version at a time: the MAC is pinned.
+  server1c83:
+    profiles: ["with-server"]
+    # NATIVE arm64 + fake-cpuinfo (confirmed by a live session, 2026-09-06):
+    # the license is bound to an x86 fingerprint (VirtualApple CPUs are only
+    # visible under Rosetta), so /proc/cpuinfo is replaced in the container
+    # (bind mount in the entrypoint) — the fingerprint matches and the native
+    # server validates the license. privileged is required.
+    # Rosetta fallback: image server1c:8.3.27.2325-amd64 built from
+    # src/Dockerfile.server.amd64; `compose build` is now safe.
+    build:
+      context: .
+      dockerfile: src/Dockerfile.server
+      args:
+        SERVER_VERSION: ${SERVER_VERSION:-8.3.27.2325}
+        SERVER_COMMON: ${SERVER_COMMON:-1c-enterprise-8.3.27.2325-common_8.3.27-2325_arm64.deb}
+        SERVER_DEB: ${SERVER_DEB:-1c-enterprise-8.3.27.2325-server_8.3.27-2325_arm64.deb}
+    image: server1c:${SERVER_VERSION:-8.3.27.2325}
+    container_name: server1c-${SERVER_VERSION:-8.3.27.2325}
+    privileged: true        # mount --bind /proc/cpuinfo (fake-cpuinfo)
+    # tini as PID 1: without it ragent does not reap child processes
+    init: true
+    # The name the cluster registers its central server under. Clients (mac and
+    # the Windows VM) must resolve "server1c" — one line in hosts on each:
+    #   mac:     127.0.0.1 server1c
+    #   Windows: 10.211.55.2 server1c
+    hostname: server1c
+    restart: unless-stopped
+    # A 1C software license is bound to hardware params, including the
+    # container MAC. Without pinning, recreating the container kills the binding.
+    mac_address: 02:42:AC:1C:0E:34
+    depends_on:
+      pg1c:
+        condition: service_healthy
+    ports:
+      - "1540-1541:1540-1541"   # ragent / cluster manager
+      - "1545:1545"             # ras (administration)
+      # rphost (one port per worker process; the cluster hands them out
+      # starting at 1560). The range is deliberately narrow: the rest of
+      # 1560-1591 on the host must stay free for the Configurator debugger,
+      # otherwise "Address already in use"
+      - "1560-1564:1560-1564"
+    volumes:
+      # fake-cpuinfo: the Rosetta fingerprint for the x86-bound license
+      - ./src/conf/cpuinfo-virtualapple:/cpuinfo:ro
+      # per-version cluster data (srvinfo is shared across minor 8.3.27.x updates)
+      - srv1c-${SERVER_VERSION:-8.3.27.2325}-data:/home/usr1cv8
+      # system-wide 1C license directory: one for all versions (the wizard
+      # drops it here; a volume, so the license survives container recreation)
+      - srv1c-lic:/var/1C/licenses
+
+  # ONE-SHOT license activation stand: Configurator in a container, screen
+  # exposed over VNC — vnc://localhost:5900. The official 1C way: the
+  # "License receiving" wizard in Configurator on the server machine. The
+  # container inherits the server's MAC/hostname/volumes -> the license is
+  # valid for server1c83.
+  #
+  # Lives on a SEPARATE network: a duplicated MAC does not conflict with the
+  # server on its own bridge, so the stand comes up WITHOUT stopping
+  # server1c83. It needs no cluster (a file infobase + internet for
+  # licensing.1c.ru); volumes are shared — the stand only touches license-ib
+  # and the license directory.
+  #
+  # Disposable container: removed after the cycle, the image stays.
+  #   docker compose --profile license up -d --build
+  #   ...walk the wizard over VNC (password 1clicens); the .lic lands in the license volume
+  #   docker compose --profile license rm -sf lic1c
+  # Renewal (every 7 days, NO login/password) is the same cycle.
+  lic1c:
+    profiles: ["license"]
+    # amd64/Rosetta build: the x86 fingerprint (consistent with the server
+    # license); the arm64 client segfaults under Docker Desktop 4.89 (see README gotchas)
+    build:
+      context: .
+      dockerfile: src/Dockerfile.license.amd64
+    image: lic1c:8.3.27.2325-amd64
+    platform: linux/amd64
+    container_name: lic1c
+    init: true
+    hostname: server1c
+    mac_address: 02:42:AC:1C:0E:34
+    networks:
+      - lic-net
+    ports:
+      - "127.0.0.1:5900:5900"
+    volumes:
+      - srv1c-${SERVER_VERSION:-8.3.27.2325}-data:/home/usr1cv8
+      - srv1c-lic:/var/1C/licenses
+
+  # License stand for PLATFORM 8.5 (native arm):
+  # 8.5 computes its fingerprint differently (CPU fields stay empty), so the
+  # x86 8.3 license does not fit it; issuing from here yields a license with
+  # no CPU binding (expected to be valid for 8.3 as well). VNC on 5901
+  # (5900 is taken by the 8.3 stand).
+  lic1c85:
+    profiles: ["license"]
+    build:
+      context: .
+      dockerfile: src/Dockerfile.license85
+    image: lic1c85:8.5.1.1522
+    container_name: lic1c85
+    init: true
+    hostname: server1c
+    mac_address: 02:42:AC:1C:0E:34
+    networks:
+      - lic-net
+    ports:
+      - "127.0.0.1:5901:5900"
+    volumes:
+      - srv1c-8.5.1.1522-data:/home/usr1cv8
+      - srv1c-lic:/var/1C/licenses
+
+  # Second cluster — platform 8.5 (native arm64, separate container).
+  # Platform ports in 8.5 are THE SAME (ragent 1540 / rmngr 1541 / ras 1545 /
+  # rphost 1560:1591 — verified against process cmdlines), so on the HOST they
+  # are published shifted: 2540->1540 etc. Same MAC/hostname, shared license
+  # volume (srv1c-lic) — hence a SEPARATE bridge srv85-net: a duplicate MAC
+  # in one L2 with server1c83 is not allowed (the lic1c/lic-net pattern);
+  # pg1c sits on both networks.
+  server1c85:
+    profiles: ["with-server"]
+    build:
+      context: .
+      dockerfile: src/Dockerfile.server
+      args:
+        SERVER_VERSION: ${SERVER85_VERSION:-8.5.1.1522}
+        SERVER_ARCH: ${SERVER85_ARCH:-arm64}
+        SERVER_COMMON: ${SERVER85_COMMON:-1c-enterprise-8.5.1.1522-common_8.5.1-1522_arm64.deb}
+        SERVER_DEB: ${SERVER85_DEB:-1c-enterprise-8.5.1.1522-server_8.5.1-1522_arm64.deb}
+    image: server1c:${SERVER85_VERSION:-8.5.1.1522}
+    container_name: server1c-${SERVER85_VERSION:-8.5.1.1522}
+    init: true
+    hostname: server1c
+    mac_address: 02:42:AC:1C:0E:34
+    # like in the classic world: a second cluster on the same machine gets its
+    # own port range (25xx) while the hostname stays shared; the client picks
+    # the cluster by the port in the infobase address (Srvr="server1c:2541"),
+    # rphost is announced as server1c:25xx
+    command: ["-port", "2540", "-regport", "2541", "-range", "2560:2591"]
+    environment:
+      AGENT_PORT: "2540"   # ras must know where ragent is (see entrypoint)
+    # fake-cpuinfo: /proc/cpuinfo is replaced with the Rosetta fingerprint
+    # (VirtualApple x86) — the x86-bound server license must validate on the
+    # native arm cluster. privileged is required (mount --bind in the entrypoint)
+    privileged: true
+    networks:
+      - srv85-net
+    restart: unless-stopped
+    depends_on:
+      pg1c:
+        condition: service_healthy
+    ports:
+      - "2540:2540"             # ragent
+      - "2541:2541"             # rmngr (cluster manager)
+      - "2545:1545"             # ras (for rac; clients never touch it)
+      # rphost range 2560:2591; published narrowly — the rest stays on the
+      # host for the 8.5 debugger (mirrors 1560-1591 of 8.3)
+      - "2560-2564:2560-2564"
+    volumes:
+      - ./src/conf/cpuinfo-virtualapple:/cpuinfo:ro
+      - srv1c-${SERVER85_VERSION:-8.5.1.1522}-data:/home/usr1cv8
+      - srv1c-lic:/var/1C/licenses
+
+  # ============================================================================
+  # NEW PLATFORM VERSION TEMPLATE (8.3.27.2340 in the example). To add one:
+  #   1. Download the debs of the version (common + server) from releases.1c.ru into dists/
+  #   2. Uncomment the block, fix <VERSION> in 4 places (dots/dashes:
+  #      8.3.27.2340 -> 8.3.27-2340) and the +XX00 port offset (third network below)
+  #   3. Declare the srv<XX>-net network and the srv1c-<VERSION>-data volume (bottom)
+  #   4. SERVER<XX>_VERSION=x docker compose --profile with-server up -d
+  # Several versions at once = a dedicated network per version (shared MAC)
+  # and non-overlapping port offsets. The .lic is single (srv1c-lic) — a
+  # server license with no CPU binding is valid on all arm clusters (see README).
+  # ============================================================================
+  #server1c832340:
+  #  profiles: ["with-server"]
+  #  build:
+  #    context: .
+  #    dockerfile: src/Dockerfile.server
+  #    args:
+  #      SERVER_VERSION: ${SERVER2340_VERSION:-8.3.27.2340}
+  #      SERVER_ARCH: arm64
+  #      SERVER_COMMON: ${SERVER2340_COMMON:-1c-enterprise-8.3.27.2340-common_8.3.27-2340_arm64.deb}
+  #      SERVER_DEB: ${SERVER2340_DEB:-1c-enterprise-8.3.27.2340-server_8.3.27-2340_arm64.deb}
+  #  image: server1c:${SERVER2340_VERSION:-8.3.27.2340}
+  #  container_name: server1c-${SERVER2340_VERSION:-8.3.27.2340}
+  #  init: true
+  #  hostname: server1c
+  #  mac_address: 02:42:AC:1C:0E:34     # SHARED: the no-CPU-binding license
+  #  privileged: true                    # fake-cpuinfo (bind /proc/cpuinfo)
+  #  command: ["-port", "3540", "-regport", "3541", "-range", "3560:3591"]
+  #  environment:
+  #    AGENT_PORT: "3540"
+  #  networks:
+  #    - srv2340-net
+  #  restart: unless-stopped
+  #  depends_on:
+  #    pg1c:
+  #      condition: service_healthy
+  #  ports:
+  #    - "3540:3540"
+  #    - "3541:3541"
+  #    - "3545:1545"
+  #    - "3560-3564:3560-3564"
+  #  volumes:
+  #    - ./src/conf/cpuinfo-virtualapple:/cpuinfo:ro
+  #    - srv1c-8.3.27.2340-data:/home/usr1cv8
+  #    - srv1c-lic:/var/1C/licenses
+
+volumes:
+  pg1c-data:
+  srv1c-lic:                # licenses: one for all versions
+  srv1c-8.3.27.2325-data:   # default-version data; add a "srv1c-<version>-data:"
+                            # line for a new version (compose requires explicit declaration)
+  srv1c-8.5.1.1522-data:
+
+# dedicated bridges: a MAC shared with the server is safe as long as the
+# containers live in different L2 domains — the license stands (lic1c*) and
+# the 8.5 cluster (server1c85)
+networks:
+  lic-net:
+  srv85-net:

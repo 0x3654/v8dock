@@ -1,0 +1,55 @@
+# syntax=docker/dockerfile:1
+# BASE (blank-slate) images of the pg1c stand — without 1C distributions, publishable.
+# Built RARELY (does not depend on platform versions); the final images
+# (Dockerfile.server / Dockerfile.license) are thin additions on top:
+#
+#   docker build --target base     -t 1c-base:11     -f Dockerfile.base .
+#   docker build --target lic-base -t lic1c-base:11  -f Dockerfile.base .
+#   ./scripts/build.sh             # bases + compose build in one command
+#
+# base     — server foundation: locale, MS Core Fonts, krb5 (debian:11)
+# lic-base — base + GUI stack (webkit 4.0/libsoup2, Xvfb, x11vnc) for the
+#            license stand; debian:11, not 12, solely because of webkit 4.0
+
+FROM debian:11-slim AS base
+
+ARG GIT_REV=""
+
+LABEL org.opencontainers.image.title="1C base (deps, fonts, locale)" \
+      org.opencontainers.image.description="Base image of the 1C stand: ru_RU, MS Core Fonts, krb5; the platform goes into final images" \
+      org.opencontainers.image.source="https://github.com/0x3654/v8dock" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.revision="${GIT_REV}" \
+      org.opencontainers.image.base.name="docker.io/library/debian:11-slim"
+
+RUN set -eux; \
+    echo "deb http://archive.debian.org/debian bullseye main contrib non-free" > /etc/apt/sources.list; \
+    rm -rf /etc/apt/sources.list.d/*; \
+    echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections; \
+    apt-get -o Acquire::Check-Valid-Until=false update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates locales fonts-dejavu-core fonts-liberation \
+        ttf-mscorefonts-installer \
+        libgssapi-krb5-2 libkrb5-3 libk5crypto3; \
+    echo 'ru_RU.UTF-8 UTF-8' >> /etc/locale.gen; \
+    locale-gen; \
+    rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/i18n
+
+FROM base AS lic-base
+
+ARG GIT_REV=""
+
+LABEL org.opencontainers.image.title="1C license stand base (GUI)" \
+      org.opencontainers.image.description="License stand base: base + GUI stack (webkit 4.0/libsoup2, Xvfb/x11vnc)" \
+      org.opencontainers.image.source="https://github.com/0x3654/v8dock" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.revision="${GIT_REV}"
+
+RUN set -eux; \
+    apt-get -o Acquire::Check-Valid-Until=false update; \
+    apt-get install -y --no-install-recommends \
+        xvfb x11vnc dbus-x11 xauth libcups2 iproute2 \
+        libgtk-3-0 libwebkit2gtk-4.0-37 libglu1-mesa libgsf-bin liblcms2-2 \
+        libfreetype6 libcairo2 libharfbuzz0b libfribidi0 \
+        policykit-1 zenity x11-utils; \
+    rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/i18n
