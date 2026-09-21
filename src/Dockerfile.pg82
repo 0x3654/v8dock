@@ -1,0 +1,79 @@
+# syntax=docker/dockerfile:1
+# PostgreSQL 9.1.9-1.1C — the DBMS of the 8.2 platform era.
+#
+# Why 9.1.9 and not 9.2.4-1.1C (the last build with 1C patches): 9.2.4 was
+# built with integer_datetimes=on and is intended for platforms 8.3.3+; on 8.2,
+# database creation/loading fails with "DBMS error: timestamp out of range".
+# 9.1.9-1.1C is the last build for the old platforms (verified pairings of
+# that era: 9.1.9-1.1C x64 + 8.2.19 on Windows). Below that — only 9.1.2-1.1C.
+#
+# x86_64 under Rosetta (no arm builds of 1C exist from that era). Squeeze base:
+# the debs were built for Ubuntu lucid 10.04 (they depend on libssl0.9.8 and
+# libc6 >= 2.11) — squeeze is their contemporary (glibc 2.11, libssl 0.9.8);
+# wheezy no longer has libssl0.9.8.
+# The Rosetta risk is the same one that killed ragent 8.2 (forks) — to be
+# verified with a test run; the fallback path is the Windows build of
+# 9.1.9-1.1C in a Parallels VM.
+FROM --platform=linux/amd64 debian/eol:squeeze
+
+ARG PG_PACKAGE=postgresql_9_1_9_1_1C_x86_64_deb_tar.bz2
+ARG PG_MAJOR=9.1
+
+LABEL org.opencontainers.image.title="PostgreSQL ${PG_MAJOR} for 1C 8.2" \
+      org.opencontainers.image.description="PostgreSQL 9.1.9-1.1C (1C-patched, 8.2 era), Debian squeeze amd64/Rosetta" \
+      org.opencontainers.image.version="9.1.9-1.1C"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN set -eux; \
+    echo "deb http://archive.debian.org/debian squeeze main" > /etc/apt/sources.list; \
+    rm -f /etc/apt/sources.list.d/*; \
+    apt-get -o Acquire::Check-Valid-Until=false update; \
+    # dependencies of the debs (everything is in squeeze except postgresql itself — it comes below)
+    apt-get install -y --no-install-recommends \
+        bzip2 locales ssl-cert tzdata procps adduser lsb-base logrotate netbase \
+        libc6 libcomerr2 libgssapi-krb5-2 libkrb5-3 libldap-2.4-2 libpam0g \
+        libedit2 libxml2 libxslt1.1 libossp-uuid16 zlib1g; \
+    # ru_RU.UTF-8 — the 1C cluster is created with it; en_US — because the
+    # 8.2 platform sends SET lc_messages per THE LOCALE OF ITS OWN PROCESS
+    # (Windows en-US), not per "Language (Country)" from the infobase creation
+    # dialog — without en_US, creation fails
+    echo 'ru_RU.UTF-8 UTF-8' >> /etc/locale.gen; \
+    echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen; \
+    echo 'en_US ISO-8859-1' >> /etc/locale.gen; \
+    locale-gen
+
+# the tar.bz2 with the debs comes in via bind-mount and does not remain in image layers (as in pg1c)
+RUN --mount=type=bind,source=dists,target=/dists set -eux; \
+    mkdir -p /tmp/pg-dists; \
+    tar -xjf "/dists/${PG_PACKAGE}" -C /tmp/pg-dists; \
+    # postgresql-common (140~lucid) detects the distribution via lsb_release
+    # in its postinst — without it, it fails. We feed it lucid, native to the deb.
+    apt-get install -y --no-install-recommends lsb-release; \
+    printf 'DISTRIB_ID=Ubuntu\nDISTRIB_RELEASE=10.04\nDISTRIB_CODENAME=lucid\nDISTRIB_DESCRIPTION="Ubuntu 10.04 LTS"\n' > /etc/lsb-release; \
+    # do not create the default cluster — the entrypoint creates it in the volume
+    mkdir -p /etc/postgresql-common; \
+    printf 'create_main_cluster = false\n' > /etc/postgresql-common/create_cluster.conf; \
+    dpkg -i /tmp/pg-dists/*.deb; \
+    # in case some postgresql-common dependencies survived uninstalled
+    apt-get -f install -y --no-install-recommends; \
+    rm -rf /etc/postgresql /var/lib/postgresql/* /tmp/pg-dists; \
+    install -d -m 700 -o postgres -g postgres /var/lib/postgresql/${PG_MAJOR}/main; \
+    install -d -m 2775 -o postgres -g postgres /var/run/postgresql; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man
+
+ENV PATH=/usr/lib/postgresql/${PG_MAJOR}/bin:$PATH \
+    PGDATA=/var/lib/postgresql/${PG_MAJOR}/main \
+    LANG=ru_RU.UTF-8
+
+# config/entrypoint AFTER the heavy layer: edits do not invalidate the PG install cache
+COPY src/entrypoints/pg82-entrypoint.sh /usr/local/bin/
+COPY src/conf/postgresql-9.1-1c.conf /conf/postgresql-9.1-1c.conf
+
+USER postgres
+VOLUME /var/lib/postgresql/${PG_MAJOR}/main
+EXPOSE 5432
+
+ENTRYPOINT ["pg82-entrypoint.sh"]
+CMD ["postgres"]

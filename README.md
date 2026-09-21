@@ -4,13 +4,13 @@
 
 **1C:Enterprise dev stack in Docker on Apple Silicon**
 
-PostgreSQL (1C build) + 1C:Enterprise 8.3 / 8.5 clusters + a fully
+PostgreSQL (1C build) + 1C:Enterprise 8.3 / 8.5 / 8.2 clusters + a fully
 automated community-license activation stand — native arm64 containers on a Mac.
 
 [What's inside](#-whats-inside) · [Quick start](#-quick-start) · [License](#-license-community--developers) · [Gotchas](#-gotchas-verified) · [Roadmap](#-roadmap) · [Русская версия](#русская-версия)
 
 ![Platform](https://img.shields.io/badge/platform-Apple%20Silicon%20%2B%20Docker-blue)
-![1C](https://img.shields.io/badge/1C-8.3%20%7C%208.5-orange)
+![1C](https://img.shields.io/badge/1C-8.3%20%7C%208.5%20%7C%208.2-orange)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18.4--1.1C%20(1C%20build)-blue)
 ![Languages](https://img.shields.io/badge/languages-Shell%20%2B%20Python-yellowgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -21,8 +21,9 @@ automated community-license activation stand — native arm64 containers on a Ma
 mac client ──┐                        ┌─ pg1c        PostgreSQL 18.4-1.1C arm64      :5432
               ├─ Docker on the Mac ───┼─ server1c83  1C cluster 8.3.27.2325 arm64    :1540-1591
 win client ───┘                       ├─ server1c85  2nd cluster 8.5.1.1522 arm64    :2540-2591
-   (Parallels,                        ├─ lic1c       license stand: thick client + epf  VNC :5900
-    optional)                         └─ lic1c85     the same stand on platform 8.5  VNC :5901
+   (Parallels,                        ├─ server1c82  8.2 playground (Rosetta)        :3540-3564
+    optional)                         ├─ lic1c       license stand: thick client + epf  VNC :5900
+                                      └─ pg82        PostgreSQL 9.1.9-1.1C (8.2 era)  :5433
 ```
 
 > [!IMPORTANT]
@@ -38,6 +39,16 @@ win client ───┘                       ├─ server1c85  2nd cluster 8.5
 > with Rosetta enabled). x86_64 Macs are untested; most of the stack has no
 > Intel build anyway (1C server arm64 debs exist since 2026).
 
+> [!IMPORTANT]
+> **This branch carries the 8.2-era playground (rev82) — read before use.**
+> There is **no license path for platform 8.2**: the free community license
+> (the ПолучениеЛицензий API) only exists from platform 8.3.20, and the 8.2
+> era was HASP-only. Real infobase sessions on this cluster are impossible —
+> the playground exists purely for reverse-engineering the old MMC admin
+> protocol (license-free admin operations). Besides, ragent 8.2 does not
+> survive Rosetta/qemu in a container (documented dead end): only rmngr
+> runs here; a fully working 8.2 agent lives on a Windows VM.
+
 ## 📦 What's inside
 
 | Container | Image / compose profile | Purpose |
@@ -47,11 +58,7 @@ win client ───┘                       ├─ server1c85  2nd cluster 8.5
 | `server1c-8.5.1.1522` | `server1c:8.5.1.1522` / `with-server` | second cluster (platform 8.5): same hostname/MAC and shared license volume, its own bridge network; host ports shifted to 2540/2541/2560-2591, clients use `Srvr="server1c:2540"` |
 | `lic1c` | `lic1c:8.3.27.2325-amd64` / `license` | license activation stand: **thick client only** (amd64/Rosetta — the x86 fingerprint is consistent with the server license), its own network so it runs **while the server is up**; disposable container. Opens a file infobase directly (`/F`, no ibsrv) and runs an epf automaton — or the classic Configurator wizard over VNC `vnc://localhost:5900` |
 | `lic1c85` | `lic1c85:8.5.1.1522` / `license` | the same stand built on platform 8.5 (VNC :5901) — for a no-CPU-binding license valid on 8.3 as well |
-
-The 8.2-era reverse-engineering playground (8.2 cluster + PostgreSQL
-9.1.9-1.1C) lives in the **[dev/82 branch](../../tree/dev/82)**: there is
-no license path for platform 8.2 (the community license API exists from
-8.3.20 only), so real infobases cannot run on it — see the notes there.
+| `server1c82` + `pg82` | `server1c82:8.2.19-130`, `pg82:9.1.9-1.1C` / `rev82` | the 8.2-era playground (old admin protocol reverse engineering): Rosetta, squeeze; 8.2 agent in a container is a dead end (ragent daemonizes → dies under emulation), rmngr lives |
 
 Repo layout: the root holds what the running stand needs (`docker-compose.yml`,
 `.env`, `bootstrap.sh`, `dists/`); everything build/dev-only lives in `src/`
@@ -76,7 +83,7 @@ Prerequisites: Docker Desktop (Rosetta enabled) and a developer.1c.ru account.
 ```bash
 git clone https://github.com/0x3654/v8dock && cd v8dock
 ./bootstrap.sh                # pg1c + 8.3 server + license stand (the default set)
-# extra flags: --with-85 (2nd cluster) · --no-server (DB only)
+# extra flags: --with-85 (2nd cluster) · --with-82 (8.2 playground) · --no-server (DB only)
 ```
 
 `bootstrap.sh` does four things and stops at the first problem:
@@ -103,6 +110,7 @@ the developer.1c.ru account); unpack archives so the files land in `dists/`:
 | [Platform83](https://releases.1c.ru/project/Platform83) → «Сервер 1С:Предприятия (64-bit ARM)» | 8.3.27.2325, section «Linux (arm64)» | `1c-enterprise-8.3.27.2325-common_8.3.27-2325_arm64.deb` + `…-server_…_arm64.deb` (both inside the server zip; there is no separate common archive for arm) |
 | [Platform83](https://releases.1c.ru/project/Platform83) → «Клиент 1С:Предприятия» x64 | 8.3.27.2325 (for the license stand) | `…-client_…_amd64.deb`; the amd64 common+server debs come from the x64 server zip — the stand needs server libs too (see gotchas) |
 | [Platform85](https://releases.1c.ru/project/Platform85) | 8.5.1.1522 (`--with-85`) | common + server arm64 debs, same naming scheme |
+| [Platform82](https://releases.1c.ru/project/Platform82) + [AddCompPostgre](https://releases.1c.ru/project/AddCompPostgre) 9.1.9-1.1C | 8.2.19-130 (`--with-82`) | `1c-enterprise82-{common,server}_8.2.19-130_amd64.deb` + `postgresql_9_1_9_1_1C_x86_64_deb_tar.bz2` (**not** 9.2.4-1.1C — that one is already 8.3.3+) |
 
 ### After bootstrap: three manual steps
 
@@ -208,16 +216,27 @@ license- or network-related. The short list:
 
 # 🐘 v8dock — весь дев-стек 1С в Docker на Apple Silicon
 
+> **Ветка dev/82: здесь живёт 8.2-полигон (profile rev82).**
+> **Комьюнити-лицензия на 8.2 работать не будет** — API «Получение лицензии»
+> появился только в 8.3.20, эпоха 8.2 — чистый HASP. Реальные сеансы ИБ на
+> этом кластере невозможны: полигон существует только для реверса старого
+> админ-протокола MMC (админ-операции лицензии не требуют). К тому же
+> ragent 8.2 не выживает под Rosetta/qemu в контейнере (документированный
+> тупик) — здесь живёт только rmngr; полностью рабочий 8.2-агент — на
+> Windows-вирталке. Основная ветка (`main`) 8.2 не содержит.
+
 PostgreSQL 18 (сборка 1С) + серверы 1С:Предприятия 8.3 / 8.5 / стенд активации
 комьюнити-лицензии — нативные arm64-контейнеры на маке. Клиенты — мак и
-Windows (Parallels, опционально; без него тоже работает).
+Windows (Parallels, опционально; без него тоже работает). Полигон 8.2 — под
+Rosetta.
 
 ```
 мак-клиент ──┐                       ┌─ pg1c      PostgreSQL 18.4-1.1C arm64 :5432
              ├─ Docker на маке ──────┼─ server1c83 кластер 1С 8.3.27.2325 arm64 :1540-1591
 винда ───────┘                       ├─ server1c85 кластер 8.5.1.1522 arm64    :2540-2591
-(Parallels,                          ├─ lic1c     стенд лицензии: толстый клиент + epf (только клиент), VNC :5900
- опционально)                        └─ lic1c85   тот же стенд на платформе 8.5   VNC :5901
+(Parallels,                          ├─ server1c82 полигон 8.2 (Rosetta)       :3540-3564
+ опционально)                        ├─ lic1c     стенд лицензии: толстый клиент + epf (только клиент), VNC :5900
+                                     └─ pg82      PostgreSQL 9.1.9-1.1C, эпоха 8.2 :5433
 ```
 
 [Навигация](#структура-репо) · [Быстрый старт](#быстрый-старт) · [Лицензия](#лицензия-комьюнити--для-разработчиков) · [Грабли](#грабли-проверено) · [Roadmap](#roadmap-1)
@@ -228,7 +247,7 @@ Windows (Parallels, опционально; без него тоже работ�
 при сборке болванок и для «разработки» (правки образов, epf, клиенты):
 
 ```
-docker-compose.yml     # pg1c + server1c83/85 (версии = env) + lic1c/85 (profile license)
+docker-compose.yml     # pg1c + server1c83/85 (версии = env) + lic1c/85 (profile license) + rev82
 bootstrap.sh           # онбординг одной командой: .env → проверка dists/ → сборка → подъём
 .env / .env.example    # секреты (POSTGRES_PASSWORD, DEV_LICENSE_*) — .env в гитигноре
 dists/                 # скачанные дистрибутивы (гитигнор; что качать — выше в англ. версии)
@@ -241,6 +260,8 @@ src/
   Dockerfile.license.amd64 # стенд лицензии: РАБОЧИЙ вариант (Rosetta, x86-отпечаток
                        # консистентен серверной лицензии)
   Dockerfile.server.amd64 # запасной Rosetta-вариант сервера
+  Dockerfile.server82  # полигон 8.2 (wheezy/Rosetta)
+  Dockerfile.pg82      # pg82: PostgreSQL 9.1.9-1.1C, эпоха 8.2 (squeeze/Rosetta)
   conf/                # тюнинг postgresql для 1С + эталон cpuinfo (fake-cpuinfo)
   entrypoints/         # entrypoint-скрипты образов
   scripts/             # bootstrap-хелперы: build.sh, build-pg.sh / build-server.sh
@@ -259,11 +280,7 @@ src/
 | `server1c-8.5.1.1522` | `server1c:8.5.1.1522` / `with-server` | второй кластер (8.5): те же hostname/MAC и общий том лицензий, отдельная сеть `srv85-net`; свой диапазон портов 2540/2541/2560:2591, клиент пишет `Srvr="server1c:2540"` |
 | `lic1c` | `lic1c:8.3.27.2325-amd64` / `license` | стенд лицензии: **только клиент** (amd64/Rosetta — отпечаток x86 консистентен серверной лицензии), отдельная сеть `lic-net` — поднимается при работающем сервере, контейнер разовый; толстый клиент открывает файловую ИБ напрямую (`/F`, без ibsrv) и исполняет epf-автомат; arm-вариант образа (`src/Dockerfile.license`) — экспериментальный (arm-клиент сегфолтится, рабочий — amd64) |
 | `lic1c85` | `lic1c85:8.5.1.1522` / `license` | тот же стенд на платформе 8.5 (VNC :5901): 8.5 считает отпечаток иначе (CPU-поля пустые), лицензия с него — без привязки к CPU |
-
-Полигон 8.2-эпохи (кластер 8.2 + PostgreSQL 9.1.9-1.1C, реверс старого
-админ-протокола) живёт в **[ветке dev/82](../../tree/dev/82)**: пути
-получения лицензии для 8.2 не существует (API «Получение лицензии» — только
-с 8.3.20), реальные сеансы ИБ на нём невозможны — подробности там.
+| `server1c82` + `pg82` | `server1c82:8.2.19-130`, `pg82:9.1.9-1.1C` / `rev82` | полигон реверса старого админ-протокола: 8.2-агент в контейнере — тупик (ragent демонизируется и умирает под эмуляцией), rmngr жив; СУБД эпохи — PostgreSQL 9.1.9-1.1C (последняя сборка 1С под платформы ниже 8.3.3; 9.2.4-1.1C — уже 8.3.3+, на 8.2 «timestamp out of range»), squeeze + Rosetta, md5 |
 
 Слои образов — ОСНОВА + тонкие добавки версий (deb идут через bind-mount
 и в слоях не остаются; рост платформы 1С раздувает только добавку, основа общая).
@@ -287,10 +304,9 @@ lic1c НЕ наращивается на server1c — ветки паралле�
 лицензия получается/продлевается epf-автоматом и launchd-таймерами (сервер
 и клиент), ночной бэкап PG работает.
 
-Сборка всего: `./src/scripts/build.sh` — версии; основы подтянутся из
-реестра сами (см. выше). Локальный оверрайд основы: `--bases` (сборка под
-тегом реестра). Основа не зависит от версий платформы — публикуема
-(внутри только debian-пакеты).
+Сборка всего: `./src/scripts/build.sh` (основы + версии; `--no-base` — только
+версии). Основа собирается из `src/Dockerfile.base` и не зависит от версий
+платформы — публикуема (внутри только debian-пакеты).
 
 ### Конкретная версия платформы
 
@@ -343,13 +359,15 @@ Data-том у каждой версии свой (srvinfo несовмести�
 Порты: `5432` (PG), `1540-1541, 1545, 1560-1564` (кластер 8.3; остальной
 диапазон 1560-1591 на хосте оставлен отладчику Конфигуратора),
 `2540-2541, 2545, 2560-2564` (кластер 8.5 — свой диапазон, зеркально 8.3;
-клиент: `Srvr="server1c:2540"`), `127.0.0.1:5900/5901` (VNC стендов лицензий).
+клиент: `Srvr="server1c:2540"`), `3540-3541, 3560-3564` (полигон 8.2),
+`5433` (pg82; винда: `10.211.55.2:5433`), `127.0.0.1:5900/5901` (VNC стендов
+лицензий).
 
 ## Быстрый старт
 
 ```bash
 git clone https://github.com/0x3654/v8dock && cd v8dock
-./bootstrap.sh        # .env → проверка dists/ → сборка → подъём; флаги: --with-85 --no-server
+./bootstrap.sh        # .env → проверка dists/ → сборка → подъём; флаги: --with-85 --with-82 --no-server
 ```
 
 Что делает bootstrap: создаёт `.env` (пароль PG генерируется; креды
@@ -684,8 +702,30 @@ tail /var/log/server1c-net.log
   отвергает: «не является адресом кластера» (по tcpdump: клиент кладёт
   трубку сразу после ответа ragent, до 2541 даже не доходит). 8.3-клиент к
   8.5-кластеру тем более не подключится (несовместимость веток).
-- Грабли эпохи 8.2 (pg82 под Rosetta, молчаливый PostgreSQL 9.1, libssl0.9.8,
-  смерть ragent под эмуляцией) — в README ветки [dev/82](../../tree/dev/82).
+- **pg82 (PostgreSQL 9.1.9-1.1C) под Rosetta — работает**: postmaster жив,
+  форк-бэкенды живы (15/15 параллельных сессий), CREATE DATABASE в стиле 1С,
+  md5-коннект снаружи — всё ок. ragent 8.2 убивала именно демонизация
+  (fork+setsid), postgres в контейнере стартует foreground — этот паттерн
+  эмуляция переваривает.
+- **9.1 не знает многого из «позднего» — и делает это МОЛЧА**:
+  `include_if_exists` в postgresql.conf → постмастер умирает с exit(1) без
+  единого сообщения (перед смертью только WARNING «нераспознанный параметр»);
+  у initdb нет `--auth-local/--auth-host` (только общий `--auth`); нет
+  `pg_isready` (healthcheck — psql по сокету). Правильно: `include`,
+  `--auth=md5` + sed local→trust в pg_hba.
+- **deb'ы 9.1.9-1.1C требуют libssl0.9.8** (сборка под Ubuntu lucid) — база
+  squeeze (glibc 2.11, ровесник), в wheezy libssl0.9.8 уже нет. А
+  postgresql-common из тара (140~lucid) падает в postinst без lsb_release —
+  лечится подсунутым /etc/lsb-release с идентификацией Ubuntu 10.04.
+- **8.2 в контейнере — ragent мёртв, диагноз установлен**: ragent ВСЕГДА
+  демонизируется (fork+setsid даже без `-daemon`); родитель честно выходит 0,
+  а настоящий сервер — форкнутый ребёнок. Под Rosetta ребёнок умирает от
+  порчи ABI (по strace: `read(fd=1, ~SIZE_MAX)`, мусорные номера сисколлов,
+  указатели как размеры); под qemu-user 5.2 и 7.2 ребёнок тоже не выживает
+  (ограничения эмуляции fork+threads). rmngr (не демонизируется) живёт везде.
+  Проверены: wheezy/jessie/bullseye/bookworm, все флаги, seccomp, права,
+  /var/log/1C, pidfile, qemu 1.1/5.2/7.2. Рабочий 8.2-агент — Windows VM;
+  контейнер server1c82 оставлен с rmngr:1541→host:3541 как запасной полигон.
 
 ## Roadmap
 

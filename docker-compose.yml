@@ -211,6 +211,61 @@ services:
       - srv1c-${SERVER85_VERSION:-8.5.1.1522}-data:/home/usr1cv8
       - srv1c-lic:/var/1C/licenses
 
+  # 8.2 cluster — the MMC snap-in reverse-engineering playground (lazy1c):
+  # old admin protocol, ras/rac and licensing did not exist in that era.
+  # x86_64/Rosetta, wheezy. The MMC snap-in on the Windows VM connects to
+  # 10.211.55.2:3540.
+  server1c82:
+    profiles: ["rev82"]
+    build:
+      context: .
+      dockerfile: src/Dockerfile.server82
+    image: server1c82:8.2.19-130
+    platform: linux/amd64      # 8.2 has no arm builds — Rosetta only
+    container_name: server1c82
+    init: true
+    hostname: server1c82
+    restart: unless-stopped
+    ports:
+      - "3540:1540"             # ragent (MMC from the Windows VM: 10.211.55.2:3540)
+      - "3541:1541"             # rmngr
+      # rphost 1560:1591 — published narrowly, like the other clusters
+      - "3560-3564:1560-1564"
+    volumes:
+      - srv1c-8.2-data:/home/usr1cv8
+
+  # PostgreSQL 9.1.9-1.1C — the DBMS of the 8.2 era for the rev82 playground.
+  # Not 9.2.4-1.1C (that one is already 8.3.3+: integer_datetimes, on 8.2
+  # "timestamp out of range"). x86_64/Rosetta (no arm builds of 1C PostgreSQL
+  # in that era), squeeze: the debs were built for Ubuntu lucid and require
+  # libssl0.9.8 (gone in wheezy). Access: Windows (the 8.2 cluster) ->
+  # 10.211.55.2:5433, mac -> localhost:5433. md5 auth (9.1 knows no scram).
+  # Escape hatch if Rosetta misbehaves: the Windows build of 9.1.9-1.1C in
+  # the Parallels VM (distribution downloaded).
+  pg82:
+    profiles: ["rev82"]
+    build:
+      context: .
+      dockerfile: src/Dockerfile.pg82
+    image: pg82:9.1.9-1.1C
+    platform: linux/amd64      # 1C builds of that era are x86_64 only
+    container_name: pg82
+    init: true
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg82-data:/var/lib/postgresql/9.1/main
+    # pg_isready only appeared in 9.3 — healthcheck via psql (local socket, trust)
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U postgres -c 'select 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   # ============================================================================
   # NEW PLATFORM VERSION TEMPLATE (8.3.27.2340 in the example). To add one:
   #   1. Download the debs of the version (common + server) from releases.1c.ru into dists/
@@ -263,6 +318,8 @@ volumes:
   srv1c-8.3.27.2325-data:   # default-version data; add a "srv1c-<version>-data:"
                             # line for a new version (compose requires explicit declaration)
   srv1c-8.5.1.1522-data:
+  srv1c-8.2-data:          # 8.2 cluster (MMC reverse)
+  pg82-data:               # 8.2-era DBMS (9.1.9-1.1C, a separate major from pg1c)
 
 # dedicated bridges: a MAC shared with the server is safe as long as the
 # containers live in different L2 domains — the license stands (lic1c*) and

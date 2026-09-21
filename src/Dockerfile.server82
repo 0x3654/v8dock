@@ -1,0 +1,46 @@
+# syntax=docker/dockerfile:1
+# 8.2 cluster — a playground for reverse-engineering the MMC snap-in (the
+# lazy1c project): the old admin protocol of the pre-rac/ras era. Sessions/
+# licenses are not needed for admin operations.
+#
+# x86_64 under Rosetta (no native arm 8.2 exists); the wheezy base is a
+# contemporary of the binaries (glibc 2.13, the 8.2.19 build era). Classic
+# ports 1540/1541/1560+, published on the host with a 354x offset (the stand's
+# third cluster, see compose).
+FROM --platform=linux/amd64 debian/eol:wheezy
+
+ARG SERVER_VERSION=8.2.19.130
+ARG COMMON_DEB=1c-enterprise82-common_8.2.19-130_amd64.deb
+ARG SERVER_DEB=1c-enterprise82-server_8.2.19-130_amd64.deb
+
+RUN set -eux; \
+    echo "deb http://archive.debian.org/debian wheezy main" > /etc/apt/sources.list; \
+    rm -f /etc/apt/sources.list.d/*; \
+    apt-get -o Acquire::Check-Valid-Until=false update; \
+    apt-get install -y --no-install-recommends locales ca-certificates; \
+    echo 'ru_RU.UTF-8 UTF-8' >> /etc/locale.gen; \
+    locale-gen; \
+    groupadd -g 1000 grp1cv8; \
+    useradd -o -u 999 -g 1000 -d /home/usr1cv8 -s /bin/bash usr1cv8; \
+    mkdir -p /home/usr1cv8; chown usr1cv8:grp1cv8 /home/usr1cv8
+
+COPY dists/${COMMON_DEB} dists/${SERVER_DEB} /tmp/
+RUN set -eux; \
+    dpkg -i /tmp/*.deb; \
+    rm -f /tmp/*.deb
+
+# the 8.2 packages install the platform into /opt/1C/v8.2/x86_64/ WITHOUT a
+# version subdirectory (flat layout — a difference from 8.3)
+ENV LANG=ru_RU.UTF-8 \
+    PATH=/opt/1C/v8.2/x86_64:$PATH
+
+USER usr1cv8
+VOLUME /home/usr1cv8
+EXPOSE 1540 1541 1560-1591
+
+# 8.2: no ras. ragent (8.2.19) under Rosetta exits silently (checked: daemon,
+# foreground, full flags, seccomp=unconfined, /var/log/1C, HOME permissions) —
+# so we launch the cluster manager rmngr instead: it is reliably alive and it
+# is exactly what the MMC-era admin protocol talks to (the console connects to
+# the manager port).
+ENTRYPOINT ["rmngr", "-port", "1541", "-range", "1560:1591"]

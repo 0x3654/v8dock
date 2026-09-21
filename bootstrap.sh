@@ -10,6 +10,7 @@
 #   ./bootstrap.sh               # pg1c + 8.3 server + license stand (the default set)
 #   ./bootstrap.sh --no-server   # DB only (no 1C server, no license stand)
 #   ./bootstrap.sh --with-85     # also the second cluster (platform 8.5)
+#   ./bootstrap.sh --with-82     # also the 8.2 reverse-engineering playground
 #
 # Versions follow the docker-compose defaults; override via env (see README):
 #   PG_VERSION=18.4-1.1C SERVER_VERSION=8.3.27.2325 ./bootstrap.sh
@@ -22,11 +23,13 @@ SERVER85_VERSION="${SERVER85_VERSION:-8.5.1.1522}"
 
 WITH_SERVER=1
 WITH_85=0
+WITH_82=0
 for arg in "$@"; do
     case "$arg" in
         --no-server) WITH_SERVER=0 ;;
         --with-85)   WITH_85=1 ;;
-        *) echo "unknown flag: $arg (supported: --no-server --with-85)" >&2; exit 2 ;;
+        --with-82)   WITH_82=1 ;;
+        *) echo "unknown flag: $arg (supported: --no-server --with-85 --with-82)" >&2; exit 2 ;;
     esac
 done
 
@@ -108,6 +111,18 @@ if [ "$WITH_85" = 1 ]; then
             "https://releases.1c.ru/project/Platform85  (same zip)"
 fi
 
+if [ "$WITH_82" = 1 ]; then
+    have "1c-enterprise82-common_8.2.19-130_amd64.deb" ||
+        miss "1c-enterprise82-common_8.2.19-130_amd64.deb" \
+            "https://releases.1c.ru/project/Platform82  (8.2.19-130)"
+    have "1c-enterprise82-server_8.2.19-130_amd64.deb" ||
+        miss "1c-enterprise82-server_8.2.19-130_amd64.deb" \
+            "https://releases.1c.ru/project/Platform82  (same page)"
+    have "postgresql_9_1_9_1_1C_x86_64_deb_tar.bz2" ||
+        miss "postgresql_9_1_9_1_1C_x86_64_deb_tar.bz2" \
+            "https://releases.1c.ru/project/AddCompPostgre  (9.1.9-1.1C — NOT 9.2.4, see README)"
+fi
+
 if [ "$MISSING" -gt 0 ]; then
     echo
     echo "== dists/ is incomplete: $MISSING file(s) missing."
@@ -125,6 +140,7 @@ else
         --build-arg PG_PACKAGE="$(cd dists && ls postgresql_${PG_BASE}_debian_*_aarch64_package.tar.bz2)" \
         --build-arg PG_MAJOR="${PG_VERSION%%.*}" -t "pg1c:${PG_VERSION}" .
 fi
+[ "$WITH_82" = 1 ] && docker compose --profile rev82 build
 
 # --- 4. up --------------------------------------------------------------------
 docker compose up -d pg1c
