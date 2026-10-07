@@ -408,7 +408,7 @@ tmplts выше) + набор dev-фиксов + запись в ibases.v8i + п
     на пустом справочнике (`?(Выборка.х = Null, 0, х)`);
   - `OrdinaryApplicationModule.bsl` / `ManagedApplicationModule.bsl` → Ext/ —
     закомментирован Отказ по пустому паролю ИБ;
-  - `Form.xml` → Documents/бит_ОперацияУправленческий/Forms/.../ — вычищены
+  - `Form.xml` → Documents/<Документ>/Forms/.../ — вычищены
     InputField с RegisterRecords-путями на ресурсы (без метки: правка
     сериализации, не код; см. раздел «Конфигурация живой базы»).
 
