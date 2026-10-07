@@ -13,5 +13,7 @@ awk '/^rdr-anchor "com\.apple\/\*"/ {
          print "rdr pass on lo0 proto tcp from any to 192.0.2.10 port 1540:1591 -> 127.0.0.1"
          # 8.5 cluster (2540 / 2541 / ras host 2545 / rphost 2560:2591)
          print "rdr pass on lo0 proto tcp from any to 192.0.2.10 port 2540:2591 -> 127.0.0.1"
+         # 8.5.4 test cluster (3540 / 3541 / ras host 3545 / rphost 3560:3591)
+         print "rdr pass on lo0 proto tcp from any to 192.0.2.10 port 3540:3591 -> 127.0.0.1"
          next
      } { print }' /etc/pf.conf | /sbin/pfctl -ef - >/dev/null 2>&1 || true

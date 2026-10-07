@@ -2,6 +2,7 @@ name: v8dock
 
 services:
   # PostgreSQL 18.4-1.1C (1C-patched build) — the central DBMS for all 1C infobases.
+  # TEST контур (PG_PROFILE=test): демо/тестовые базы, дамп по изменению.
   # Access: mac -> localhost:5432, Windows (Parallels) -> 10.211.55.2:5432
   #
   # VERSION IS PARAMETERIZED via env (or .env):
@@ -38,10 +39,43 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
-    # default (for server1c83/backup) + srv85-net (for server1c85)
+    # default (for server1c83/backup) + srv85-net (for server1c85) + srv854-net
     networks:
       - default
       - srv85-net
+      - srv854-net
+
+  # ============================================================================
+  # DEV контур (задел, profile "dev") — отдельный кластер, отдельная сеть,
+  # отдельная политика дампов (PITR: basebackup + WAL-архив, 15-минутный RPO).
+  # Контуры ИЗОЛИРОВАНЫ: dev-net не мостится с test (default/srv85-net) —
+  # разные контуры не должны видеть базы друг друга.
+  # Подъём: docker compose --profile dev up -d pg1c-dev
+  # ============================================================================
+  #pg1c-dev:
+  #  profiles: ["dev"]
+  #  image: pg1c:${PG_VERSION:-18.4-1.1C}          # тот же образ, другой кластер
+  #  container_name: pg1c-dev
+  #  restart: unless-stopped
+  #  environment:
+  #    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+  #  ports:
+  #    - "5543:5432"                               # свой порт, без конфликта с test
+  #  volumes:
+  #    - pg1c-dev-data:/var/lib/postgresql/18/main
+  #    - ${DEV_PG_BACKUP_DIR:-./data/backups-dev}:/backups
+  #  # PITR (раскомментировать в src/conf/postgresql-dev.conf):
+  #  #   archive_mode = on
+  #  #   archive_command = 'cp %p /backups/wal/%f'
+  #  #   archive_timeout = 900    # 15-минутный RPO
+  #  healthcheck:
+  #    test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+  #    interval: 10s
+  #    timeout: 5s
+  #    retries: 12
+  #    start_period: 30s
+  #  networks:
+  #    - dev-net                                  # ТОЛЬКО dev-net, никаких мостов к test
 
   # 1C:Enterprise server — VERSION IS PARAMETERIZED via env (or .env):
   #   ./src/scripts/build-server.sh 8.3.27.2340   # build an image of that version (debs in dists/)
@@ -160,6 +194,33 @@ services:
       - srv1c-8.5.1.1522-data:/home/usr1cv8
       - srv1c-lic:/var/1C/licenses
 
+  # License stand for the 8.5.4 TEST build: same pattern as lic1c85, but the
+  # 8.5.4 license manager is NEW (HASP LM replaced) — community renewals for
+  # the 8.5.4 cluster must be issued by the 8.5.4 client. VNC on 5902
+  # (5900 = 8.3 stand, 5901 = 8.5.1 stand).
+  lic1c854:
+    profiles: ["license"]
+    build:
+      context: .
+      dockerfile: src/Dockerfile.license85
+      args:
+        PLATFORM_VERSION: 8.5.4.1878
+        CLIENT_DEB: 1c-enterprise-8.5.4.1878-client_8.5.4-1878_arm64.deb
+        COMMON_DEB: 1c-enterprise-8.5.4.1878-common_8.5.4-1878_arm64.deb
+        SERVER_DEB: 1c-enterprise-8.5.4.1878-server_8.5.4-1878_arm64.deb
+    image: lic1c854:8.5.4.1878
+    container_name: lic1c854
+    init: true
+    hostname: server1c
+    mac_address: 02:42:AC:1C:0E:34
+    networks:
+      - lic-net
+    ports:
+      - "127.0.0.1:5902:5900"
+    volumes:
+      - srv1c-8.5.4.1878-data:/home/usr1cv8
+      - srv1c-lic:/var/1C/licenses
+
   # Second cluster — platform 8.5 (native arm64, separate container).
   # Platform ports in 8.5 are THE SAME (ragent 1540 / rmngr 1541 / ras 1545 /
   # rphost 1560:1591 — verified against process cmdlines), so on the HOST they
@@ -211,6 +272,54 @@ services:
       - srv1c-${SERVER85_VERSION:-8.5.1.1522}-data:/home/usr1cv8
       - srv1c-lic:/var/1C/licenses
 
+  # Third cluster — platform 8.5.4 TEST build (8.5.4.1878, native arm64).
+  # Purpose: the native Apple Silicon mac client test (all x86_64/Rosetta
+  # clients crash on A18 Pro — vrsbase.dylib SIGSEGV; 8.5.4 is the first
+  # native macOS arm64 build AND it rewrote the licensing mechanism, so the
+  # old .lic in srv1c-lic may not validate — if so, build a lic1c854 stand
+  # from the 8.5.4 client deb, Dockerfile.license85 pattern).
+  # Same pattern as server1c85: own bridge srv854-net (shared MAC), port
+  # offset 35xx. The version is NOT parameterized — a test build, keep it
+  # explicit.
+  server1c854:
+    profiles: ["with-server"]
+    build:
+      context: .
+      dockerfile: src/Dockerfile.server
+      args:
+        SERVER_VERSION: 8.5.4.1878
+        SERVER_ARCH: arm64
+        SERVER_COMMON: 1c-enterprise-8.5.4.1878-common_8.5.4-1878_arm64.deb
+        SERVER_DEB: 1c-enterprise-8.5.4.1878-server_8.5.4-1878_arm64.deb
+    image: server1c:8.5.4.1878
+    container_name: server1c-8.5.4.1878
+    init: true
+    # clients must resolve "server1c" (the rphost advertisement uses the
+    # container hostname): hosts entries on every client machine —
+    #   the server mac itself: 192.0.2.10 server1c (+ pf redirect,
+    #     src/mac/server1c-net.sh); every client mac: <server-lan-ip> server1c
+    hostname: server1c
+    mac_address: 02:42:AC:1C:0E:34
+    command: ["-port", "3540", "-regport", "3541", "-range", "3560:3591"]
+    environment:
+      AGENT_PORT: "3540"    # ras must know where ragent is (see entrypoint)
+    privileged: true        # fake-cpuinfo (bind /proc/cpuinfo)
+    networks:
+      - srv854-net
+    restart: unless-stopped
+    depends_on:
+      pg1c:
+        condition: service_healthy
+    ports:
+      - "3540:3540"         # ragent
+      - "3541:3541"         # rmngr (cluster manager)
+      - "3545:1545"         # ras (for rac; clients never touch it)
+      - "3560-3564:3560-3564"  # rphost range 3560:3591, published narrowly
+    volumes:
+      - ./src/conf/cpuinfo-virtualapple:/cpuinfo:ro
+      - srv1c-8.5.4.1878-data:/home/usr1cv8
+      - srv1c-lic:/var/1C/licenses
+
   # ============================================================================
   # NEW PLATFORM VERSION TEMPLATE (8.3.27.2340 in the example). To add one:
   #   1. Download the debs of the version (common + server) from releases.1c.ru into dists/
@@ -259,10 +368,12 @@ services:
 
 volumes:
   pg1c-data:
+  #pg1c-dev-data:                              # раскомментировать с dev-контуром
   srv1c-lic:                # licenses: one for all versions
   srv1c-8.3.27.2325-data:   # default-version data; add a "srv1c-<version>-data:"
                             # line for a new version (compose requires explicit declaration)
   srv1c-8.5.1.1522-data:
+  srv1c-8.5.4.1878-data:    # 8.5.4 TEST build cluster
 
 # dedicated bridges: a MAC shared with the server is safe as long as the
 # containers live in different L2 domains — the license stands (lic1c*) and
@@ -270,3 +381,5 @@ volumes:
 networks:
   lic-net:
   srv85-net:
+  srv854-net:               # 8.5.4 TEST cluster (own L2: shared MAC)
+  #dev-net:                                    # изолированный контур dev
