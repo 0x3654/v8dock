@@ -25,9 +25,17 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      # Timezone comes from the /etc/localtime bind in volumes (= host TZ).
+      # On a Windows host there is no /etc/localtime to bind — drop the bind
+      # and set TZ here instead:
+      #TZ: Europe/Moscow
     ports:
       - "5432:5432"
     volumes:
+      # container TZ = host TZ: without it everything runs in UTC and
+      # server-side журнал регистрации events land hours off (Windows hosts:
+      # no /etc/localtime to bind — use the TZ env fallback instead)
+      - /etc/localtime:/etc/localtime:ro
       - pg1c-data:/var/lib/postgresql/18/main
       # backups: a host folder visible in the container as /backups (default
       # ./data/backups, override in .env; point it at a Time Machine-covered
@@ -113,6 +121,11 @@ services:
     # A 1C software license is bound to hardware params, including the
     # container MAC. Without pinning, recreating the container kills the binding.
     mac_address: 02:42:AC:1C:0E:34
+    # Timezone: containers run in UTC, so server-side журнал регистрации events
+    # land 4h off. Local time: bind /etc/localtime (mac/linux — inherits the
+    # host timezone, like the ansible roles) or TZ env (portable, Windows too):
+    #environment:
+    #  TZ: Europe/Moscow
     depends_on:
       pg1c:
         condition: service_healthy
@@ -125,6 +138,10 @@ services:
       # otherwise "Address already in use"
       - "1560-1564:1560-1564"
     volumes:
+      # container TZ = host TZ: without it everything runs in UTC and
+      # server-side журнал регистрации events land hours off (Windows hosts:
+      # no /etc/localtime to bind — use the TZ env fallback instead)
+      - /etc/localtime:/etc/localtime:ro
       # fake-cpuinfo: the Rosetta fingerprint for the x86-bound license
       - ./src/conf/cpuinfo-virtualapple:/cpuinfo:ro
       # per-version cluster data (srvinfo is shared across minor 8.3.27.x updates)
@@ -250,6 +267,7 @@ services:
     command: ["-port", "2540", "-regport", "2541", "-range", "2560:2591"]
     environment:
       AGENT_PORT: "2540"   # ras must know where ragent is (see entrypoint)
+      #TZ: Europe/Moscow    # local time (журнал регистрации); or bind /etc/localtime:ro
     # fake-cpuinfo: /proc/cpuinfo is replaced with the Rosetta fingerprint
     # (VirtualApple x86) — the x86-bound server license must validate on the
     # native arm cluster. privileged is required (mount --bind in the entrypoint)
@@ -268,6 +286,10 @@ services:
       # host for the 8.5 debugger (mirrors 1560-1591 of 8.3)
       - "2560-2564:2560-2564"
     volumes:
+      # container TZ = host TZ: without it everything runs in UTC and
+      # server-side журнал регистрации events land hours off (Windows hosts:
+      # no /etc/localtime to bind — use the TZ env fallback instead)
+      - /etc/localtime:/etc/localtime:ro
       - ./src/conf/cpuinfo-virtualapple:/cpuinfo:ro
       - srv1c-${SERVER85_VERSION:-8.5.1.1522}-data:/home/usr1cv8
       - srv1c-lic:/var/1C/licenses
@@ -303,6 +325,7 @@ services:
     command: ["-port", "3540", "-regport", "3541", "-range", "3560:3591"]
     environment:
       AGENT_PORT: "3540"    # ras must know where ragent is (see entrypoint)
+      #TZ: Europe/Moscow    # local time (журнал регистрации); or bind /etc/localtime:ro
     privileged: true        # fake-cpuinfo (bind /proc/cpuinfo)
     networks:
       - srv854-net
@@ -316,6 +339,10 @@ services:
       - "3545:1545"         # ras (for rac; clients never touch it)
       - "3560-3564:3560-3564"  # rphost range 3560:3591, published narrowly
     volumes:
+      # container TZ = host TZ: without it everything runs in UTC and
+      # server-side журнал регистрации events land hours off (Windows hosts:
+      # no /etc/localtime to bind — use the TZ env fallback instead)
+      - /etc/localtime:/etc/localtime:ro
       - ./src/conf/cpuinfo-virtualapple:/cpuinfo:ro
       - srv1c-8.5.4.1878-data:/home/usr1cv8
       - srv1c-lic:/var/1C/licenses
